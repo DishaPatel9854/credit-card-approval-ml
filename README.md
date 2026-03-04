@@ -1,3 +1,4 @@
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://credit-card-approval-ml-njvc7tbe3vlww4dja7bjs8.streamlit.app/)
 # Credit Card Approval Probability Prediction
 
 A machine learning system that estimates the probability of credit card approval based on applicant financial and demographic attributes. The project simulates real-world underwriting logic and provides an interactive dashboard for evaluating approval likelihood before submitting a formal credit application.
