@@ -119,7 +119,7 @@ The evaluation curves demonstrate the model's performance across different metri
 The dashboard now provides **binary approval decisions** alongside probability estimates:
 
 - **Probability Estimate**: Floating-point value (0-1) representing approval likelihood
-- **Decision**: Binary classification (✅ APPROVED / ❌ DENIED) based on optimal threshold
+- **Decision**: Binary classification based on optimal threshold
 - **Threshold**: 0.421 (optimized during model tuning)
 
 Applicants with a predicted probability ≥ 0.421 receive an approval recommendation, enabling the institution to capture more creditworthy applicants under expansionary lending conditions.
