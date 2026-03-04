@@ -127,6 +127,7 @@ AWS S3
 ---
 
 ## Repository Structure
+```
 credit-card-approval-ml/
 │
 ├── app.py
@@ -134,14 +135,15 @@ credit-card-approval-ml/
 ├── README.md
 │
 ├── data/
-│ └── credit_approval.csv
+│   └── credit_approval.csv
 │
 ├── models/
-│ └── svm_credit_model.pkl
+│   └── svm_credit_model.pkl
 │
 └── notebooks/
-├── eda.ipynb
-└── modeling.ipynb
+    ├── eda.ipynb
+    └── modeling.ipynb
+```
 
 
 ---
