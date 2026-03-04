@@ -99,14 +99,6 @@ Measured using **5-fold stratified cross-validation**.
 
 ---
 
-## Model Interpretability
-
-To improve transparency, the dashboard integrates **SHAP explanations**, allowing users to see which features contributed most to each prediction.
-
-This mimics explainability requirements used in real-world financial models.
-
----
-
 ## Deployment
 
 The project includes an interactive **Streamlit dashboard** that allows users to enter applicant information and receive an approval probability estimate.
@@ -127,7 +119,6 @@ Pandas
 NumPy  
 Streamlit  
 Plotly  
-SHAP  
 AWS S3  
 
 ---
