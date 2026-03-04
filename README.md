@@ -1,152 +1,100 @@
 # Credit Card Approval Probability Prediction
 
-A machine learning system that estimates the probability of credit card approval based on applicant financial and demographic attributes.  
-The project simulates real-world underwriting logic and provides an interactive dashboard for evaluating approval likelihood before submitting a formal credit application.
+A machine learning system that estimates the probability of credit card approval based on applicant financial and demographic attributes. The project simulates real-world underwriting logic and provides an interactive dashboard for evaluating approval likelihood before submitting a formal credit application.
 
 ---
 
 ## Problem Statement
 
-Submitting a credit card application typically triggers a **hard credit inquiry**, which can temporarily lower an applicant's credit score.  
-
-This project builds a predictive system that estimates the **probability of approval before applying**, helping applicants assess their chances without impacting their credit profile.
+Submitting a credit card application triggers a **hard credit inquiry**, which can temporarily lower an applicant's credit score. This project builds a predictive system that estimates the **probability of approval before applying** — helping applicants assess their chances without impacting their credit profile.
 
 ---
 
 ## System Architecture
-
-![Architecture Diagram](assets/architecture.png)
+```
+User Input → Streamlit App → AWS S3 (model load) → Gradient Boosting Pipeline → Probability Output
+```
 
 ---
 
 ## Dataset
 
-Dataset: Credit Card Approval Prediction Dataset (Kaggle / UCI Repository)
+**Source:** UCI Credit Approval Dataset (`crx.csv`)
 
-The dataset contains anonymized applicant attributes, including:
+Features include age, debt level, years employed, income, credit score, prior default history, gender, marital status, citizenship, and employment status. Column identities are anonymized in the original dataset; labels have been mapped to interpretable names.
 
-- Age
-- Debt level
-- Employment history
-- Income
-- Credit score
-- Prior default history
-- Demographic features
-
-These variables simulate features commonly used in **credit underwriting models**.
+**Target:** Binary approval label (`+` → 1, `-` → 0)
 
 ---
 
 ## Project Workflow
 
-### 1. Exploratory Data Analysis
-- Missing value analysis
-- Outlier detection
-- Distribution analysis
-- Correlation heatmap
-- Bivariate analysis
-- Statistical hypothesis testing (t-test, chi-square)
+### 1. Preprocessing Pipeline
 
-Goal: Identify key financial risk drivers.
+Built using a Scikit-learn `ColumnTransformer` inside a `Pipeline` to prevent data leakage — all imputation and scaling is fit on training data only.
 
----
+- **Numeric features:** Median imputation → Standard scaling
+- **Categorical features:** Most-frequent imputation → One-hot encoding
+- **Train/test split:** 80/20 with stratification on the target label
 
-### 2. Data Preprocessing
+### 2. Model Benchmarking
 
-- Missing value imputation
-- One-hot encoding of categorical variables
-- Feature scaling for numerical variables
-- Train-test split with stratification
+Three models were benchmarked at the default 0.50 threshold:
 
-Implemented using a **Scikit-learn pipeline** to avoid data leakage.
+| Model | Recall | ROC-AUC |
+|---|---|---|
+| Gradient Boosting | — | 0.9607 |
+| SVM | — | 0.9593 |
+| AdaBoost | — | — |
 
----
+Primary metric: **Recall** — minimizes false rejections of creditworthy applicants.
 
-### 3. Model Benchmarking
+### 3. Model Selection: Gradient Boosting
 
-Three models were trained and evaluated:
+Despite SVM achieving slightly higher recall at the default threshold, Gradient Boosting was selected as the final model for three reasons:
 
-- Support Vector Machine (SVM)
-- Gradient Boosting
-- AdaBoost
+1. **Equivalent discrimination power** — ROC-AUC scores are nearly identical (0.9607 vs 0.9593), confirming both models carry the same underlying signal. The recall gap at 0.50 is a deployment artifact, not a model quality difference.
+2. **Threshold tunability** — Gradient Boosting outputs well-calibrated probabilities, making threshold optimization principled and auditable. This is the correct way to encode credit policy into a model.
+3. **Interpretability** — Gradient Boosting provides native feature importances. SVM (RBF kernel) is a black box — a practical liability in any deployed credit decision system.
 
-Evaluation metrics:
+### 4. Hyperparameter Tuning
 
-- Recall
-- ROC-AUC
-- Confusion Matrix
+`RandomizedSearchCV` with `scoring='recall'` over 5-fold stratified cross-validation. Parameters tuned: `n_estimators`, `max_depth`, `learning_rate`, `subsample`, `min_samples_split`.
 
----
+### 5. Threshold Optimization (Credit Policy Alignment)
 
-### 4. Model Selection & Threshold Tuning
+The default 0.50 threshold assumes symmetric misclassification costs. In credit lending, costs are asymmetric and cycle-dependent.
 
-The final model was selected based on **recall performance**.
+**Expansionary policy:** Scan the precision-recall curve to find the highest-precision threshold that still achieves **≥ 90% recall**. This directly encodes a bull-market lending objective — capturing creditworthy applicants at a controlled false positive rate.
 
-In an expansionary credit environment, financial institutions prioritize capturing creditworthy applicants while tolerating moderate risk.
-
-Final model:
-
-**Gradient Boosting Classifier** (tuned with RandomizedSearchCV)
-
-Performance:
+### 6. Final Model Performance (Tuned Threshold)
 
 | Metric | Score |
-|------|------|
-| Mean Recall | ~0.92 |
-| Mean ROC-AUC | ~0.94 |
-| Decision Threshold | 0.421 |
-
-Measured using **5-fold stratified cross-validation**.
-
-**Threshold Optimization:** The decision threshold was tuned separately to maximize recall, allowing the model to approve borrowers at a probability threshold of **0.421** instead of the default 0.5, making approval decisions more lenient under expansionary policy.
-
-### Feature Importance
-
-![Feature Importance](assets/feature_importance.png)
-
-The graph above shows the top 15 most important features in the Gradient Boosting model. Key drivers of approval decisions include credit score, income, and employment history.
-
-### Model Evaluation Curves
-
-![Model Evaluation Curves](assets/model_evaluation_curves.png)
-
-The evaluation curves demonstrate the model's performance across different metrics, including ROC curves, precision-recall curves, and confusion matrices from cross-validation.
+|---|---|
+| Recall | ≥ 0.90 |
+| ROC-AUC | ~0.96 |
+| Validation | 5-Fold Stratified Cross-Validation |
 
 ---
 
-## Model Output & Decision Logic
+## Model Interpretability
 
-The dashboard now provides **binary approval decisions** alongside probability estimates:
-
-- **Probability Estimate**: Floating-point value (0-1) representing approval likelihood
-- **Decision**: Binary classification based on optimal threshold
-- **Threshold**: 0.421 (optimized during model tuning)
-
-Applicants with a predicted probability ≥ 0.421 receive an approval recommendation, enabling the institution to capture more creditworthy applicants under expansionary lending conditions.
+The Streamlit dashboard integrates **SHAP explanations**, allowing users to see which features contributed most to each prediction — mirroring explainability requirements used in real-world financial models.
 
 ---
 
 ## Deployment
 
-The project includes an interactive **Streamlit dashboard** that allows users to enter applicant information and receive an approval probability estimate with a binary decision.
-
-Architecture:
-
-User Input → Streamlit App → AWS S3 → Gradient Boosting Model + Threshold → Prediction Output
-
-The trained model and optimal threshold are stored on **AWS S3** and loaded dynamically by the application.
+Trained model and optimal threshold are stored on **AWS S3** and loaded dynamically by the application.
+```
+User Input → Streamlit App → AWS S3 (model + threshold) → Prediction + Gauge Chart
+```
 
 ---
 
 ## Tech Stack
 
-Python  
-Scikit-learn  
-Pandas  
-NumPy  
-Streamlit  
-Plotly  
-AWS S3  
+Python · Scikit-learn · Pandas · NumPy · Streamlit · Plotly · SHAP · AWS S3
 
 ---
 
@@ -154,67 +102,46 @@ AWS S3
 ```
 credit-card-approval-ml/
 │
-├── app.py
+├── app.py                     # Streamlit dashboard
 ├── requirements.txt
 ├── README.md
 │
-├── assets/
-│   ├── architecture.png
-│   ├── feature_importance.png
-│   └── model_evaluation_curves.png
-│
 ├── data/
-│   └── credit_approval.csv
+│   └── raw/
+│       └── crx.csv
 │
 ├── models/
 │   ├── gb_credit_model.pkl
 │   └── optimal_threshold.pkl
+│
+├── assets/
+│   └── architecture.png
 │
 └── notebooks/
     ├── eda.ipynb
     └── modeling.ipynb
 ```
 
-
 ---
 
 ## Running the Application
-
-Install dependencies:
-
-
+```bash
 pip install -r requirements.txt
-
-
-Run the Streamlit dashboard:
-
-
 streamlit run app.py
-
-
----
-
-## Demo
-
-Run locally:
-
-streamlit run app.py
-
-The dashboard allows users to enter applicant information and receive an estimate of approval probability.
+```
 
 ---
 
 ## Future Improvements
 
-- Add additional financial features
-- Implement model monitoring
-- Deploy dashboard publicly
-- Improve the explainability visualization
+- Add model monitoring for distribution drift
+- Deploy dashboard publicly via Streamlit Community Cloud
+- Expand SHAP visualizations within the dashboard
+- Incorporate additional financial features
 
 ---
 
 ## Author
 
-Disha Patel  
-Computer Science Student  
-Interested in Machine Learning and Financial Modeling
+**Disha Patel** — Computer Science Student  
+Interests: Machine Learning · Financial Modeling
