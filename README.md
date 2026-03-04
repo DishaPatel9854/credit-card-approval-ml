@@ -78,7 +78,7 @@ Evaluation metrics:
 
 ---
 
-### 4. Model Selection
+### 4. Model Selection & Threshold Tuning
 
 The final model was selected based on **recall performance**.
 
@@ -86,36 +86,55 @@ In an expansionary credit environment, financial institutions prioritize capturi
 
 Final model:
 
-Support Vector Machine (SVM)
+**Gradient Boosting Classifier** (tuned with RandomizedSearchCV)
 
 Performance:
 
 | Metric | Score |
 |------|------|
-| Mean Recall | ~0.91 |
-| Mean ROC-AUC | ~0.93 |
+| Mean Recall | ~0.92 |
+| Mean ROC-AUC | ~0.94 |
+| Decision Threshold | 0.421 |
 
 Measured using **5-fold stratified cross-validation**.
 
+**Threshold Optimization:** The decision threshold was tuned separately to maximize recall, allowing the model to approve borrowers at a probability threshold of **0.421** instead of the default 0.5, making approval decisions more lenient under expansionary policy.
+
+### Feature Importance
+
+![Feature Importance](assets/feature_importance.png)
+
+The graph above shows the top 15 most important features in the Gradient Boosting model. Key drivers of approval decisions include credit score, income, and employment history.
+
+### Model Evaluation Curves
+
+![Model Evaluation Curves](assets/model_evaluation_curves.png)
+
+The evaluation curves demonstrate the model's performance across different metrics, including ROC curves, precision-recall curves, and confusion matrices from cross-validation.
+
 ---
 
-## Model Interpretability
+## Model Output & Decision Logic
 
-To improve transparency, the dashboard integrates **SHAP explanations**, allowing users to see which features contributed most to each prediction.
+The dashboard now provides **binary approval decisions** alongside probability estimates:
 
-This mimics explainability requirements used in real-world financial models.
+- **Probability Estimate**: Floating-point value (0-1) representing approval likelihood
+- **Decision**: Binary classification (✅ APPROVED / ❌ DENIED) based on optimal threshold
+- **Threshold**: 0.421 (optimized during model tuning)
+
+Applicants with a predicted probability ≥ 0.421 receive an approval recommendation, enabling the institution to capture more creditworthy applicants under expansionary lending conditions.
 
 ---
 
 ## Deployment
 
-The project includes an interactive **Streamlit dashboard** that allows users to enter applicant information and receive an approval probability estimate.
+The project includes an interactive **Streamlit dashboard** that allows users to enter applicant information and receive an approval probability estimate with a binary decision.
 
 Architecture:
 
-User Input → Streamlit App → AWS S3 → Machine Learning Model → Prediction Output
+User Input → Streamlit App → AWS S3 → Gradient Boosting Model + Threshold → Prediction Output
 
-The trained model is stored on **AWS S3** and loaded dynamically by the application.
+The trained model and optimal threshold are stored on **AWS S3** and loaded dynamically by the application.
 
 ---
 
@@ -140,11 +159,17 @@ credit-card-approval-ml/
 ├── requirements.txt
 ├── README.md
 │
+├── assets/
+│   ├── architecture.png
+│   ├── feature_importance.png
+│   └── model_evaluation_curves.png
+│
 ├── data/
 │   └── credit_approval.csv
 │
 ├── models/
-│   └── svm_credit_model.pkl
+│   ├── gb_credit_model.pkl
+│   └── optimal_threshold.pkl
 │
 └── notebooks/
     ├── eda.ipynb

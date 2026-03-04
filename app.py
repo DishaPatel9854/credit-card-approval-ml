@@ -18,16 +18,15 @@ st.set_page_config(
 # ----------------------------
 @st.cache_resource
 def load_model():
+    model_url     = "https://credit-risk-model-bucket.s3.eu-north-1.amazonaws.com/gb_credit_model.pkl"
+    threshold_url = "https://credit-risk-model-bucket.s3.eu-north-1.amazonaws.com/optimal_threshold.pkl"
 
-    url = "https://credit-risk-model-bucket.s3.amazonaws.com/svm_credit_model.pkl"
+    model     = joblib.load(io.BytesIO(requests.get(model_url).content))
+    threshold = joblib.load(io.BytesIO(requests.get(threshold_url).content))
 
-    response = requests.get(url)
+    return model, threshold
 
-    model = joblib.load(io.BytesIO(response.content))
-
-    return model
-
-model = load_model()
+model, threshold = load_model()
 
 # ----------------------------
 # Alias Mappings (UI -> Model Code)
@@ -88,8 +87,8 @@ st.markdown("""
 This dashboard estimates the probability of **credit card approval**  
 based on applicant financial and demographic attributes.
 
-**Model Used:** Support Vector Machine  
-**Validation:** 5-Fold Cross Validation  
+**Model Used:** Gradient Boosting Classifier  
+**Validation:** 5-Fold Stratified Cross Validation  
 **Objective:** Maximize recall under expansionary credit conditions
 """)
 
@@ -150,6 +149,7 @@ if st.button("Evaluate Approval Probability"):
     }])
 
     probability = model.predict_proba(input_data)[0][1]
+    prediction  = (probability >= threshold).astype(int)
 
     st.subheader("Approval Probability")
 
@@ -169,6 +169,8 @@ if st.button("Evaluate Approval Probability"):
     ))
 
     st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(f"**Decision:** {('✅ APPROVED' if prediction == 1 else '❌ DENIED')} (Threshold: {threshold:.3f})")
 
     st.subheader("Applicant Summary")
 
@@ -192,13 +194,13 @@ if st.button("Evaluate Approval Probability"):
     st.table(summary)
 
     with st.expander("Model Information"):
-        st.markdown("""
+        st.markdown(f"""
 ### Model Details
 
-• Algorithm: Support Vector Machine  
+• Algorithm: Gradient Boosting Classifier  
 • Validation: 5-Fold Stratified Cross-Validation  
-• Mean Recall: ~0.91  
-• Mean ROC-AUC: ~0.93  
+• Tuning: RandomizedSearchCV (optimized for recall)  
+• Decision Threshold: {threshold:.3f}  
 
 ### Objective
 
@@ -211,5 +213,10 @@ The prediction pipeline includes:
 - Missing value imputation
 - One-hot encoding for categorical features
 - Standard scaling for numeric features
-- SVM classification
+- Gradient Boosting classification
+
+### Decision Threshold
+
+Predictions are made by comparing the probability against {threshold:.3f}.  
+Applicants above this threshold are approved under the expansionary policy.
 """)
