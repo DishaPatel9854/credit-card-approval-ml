@@ -146,7 +146,6 @@ Pandas
 NumPy  
 Streamlit  
 Plotly  
-SHAP  
 AWS S3  
 
 ---
