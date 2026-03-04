@@ -12,6 +12,7 @@ Submitting a credit card application typically triggers a **hard credit inquiry*
 This project builds a predictive system that estimates the **probability of approval before applying**, helping applicants assess their chances without impacting their credit profile.
 
 ---
+
 ## System Architecture
 
 ![Architecture Diagram](assets/architecture.png)
@@ -166,6 +167,16 @@ Run the Streamlit dashboard:
 
 streamlit run app.py
 
+
+---
+
+## Demo
+
+Run locally:
+
+streamlit run app.py
+
+The dashboard allows users to enter applicant information and receive an estimate of approval probability.
 
 ---
 
