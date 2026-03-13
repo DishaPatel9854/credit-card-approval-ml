@@ -7,7 +7,7 @@ A machine learning system that estimates the probability of credit card approval
 
 ## Problem Statement
 
-Submitting a credit card application triggers a **hard credit inquiry**, which can temporarily lower an applicant's credit score. This project builds a predictive system that estimates the **probability of approval before applying** - helping applicants assess their chances without impacting their credit profile.
+Submitting a credit card application triggers a **hard credit inquiry**, which can temporarily lower an applicant's credit score. This project builds a predictive system that estimates the **probability of approval before applying**, helping applicants assess their chances without impacting their credit profile.
 
 ---
 
