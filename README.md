@@ -66,7 +66,7 @@ Despite SVM achieving slightly higher recall at the default threshold, Gradient 
 
 The default 0.50 threshold assumes symmetric misclassification costs. In credit lending, costs are asymmetric and cycle-dependent.
 
-**Expansionary policy:** Scan the precision-recall curve to find the highest-precision threshold that still achieves **≥ 90% recall**. This directly encodes a bull-market lending objective — capturing creditworthy applicants at a controlled false positive rate.
+**Expansionary policy:** Scan the precision-recall curve to find the highest-precision threshold that still achieves **≥ 90% recall**. This directly encodes a bull-market lending objective - capturing creditworthy applicants at a controlled false positive rate.
 
 ### 6. Final Model Performance (Tuned Threshold)
 
