@@ -48,15 +48,15 @@ Three models were benchmarked at the default 0.50 threshold:
 | SVM | — | 0.9593 |
 | AdaBoost | — | — |
 
-Primary metric: **Recall** — minimizes false rejections of creditworthy applicants.
+Primary metric: **Recall** - minimizes false rejections of creditworthy applicants.
 
 ### 3. Model Selection: Gradient Boosting
 
 Despite SVM achieving slightly higher recall at the default threshold, Gradient Boosting was selected as the final model for three reasons:
 
-1. **Equivalent discrimination power** — ROC-AUC scores are nearly identical (0.9607 vs 0.9593), confirming both models carry the same underlying signal. The recall gap at 0.50 is a deployment artifact, not a model quality difference.
-2. **Threshold tunability** — Gradient Boosting outputs well-calibrated probabilities, making threshold optimization principled and auditable. This is the correct way to encode credit policy into a model.
-3. **Interpretability** — Gradient Boosting provides native feature importances. SVM (RBF kernel) is a black box — a practical liability in any deployed credit decision system.
+1. **Equivalent discrimination power** - ROC-AUC scores are nearly identical (0.9607 vs 0.9593), confirming both models carry the same underlying signal. The recall gap at 0.50 is a deployment artifact, not a model quality difference.
+2. **Threshold tunability** - Gradient Boosting outputs well-calibrated probabilities, making threshold optimization principled and auditable. This is the correct way to encode credit policy into a model.
+3. **Interpretability** - Gradient Boosting provides native feature importances. SVM (RBF kernel) is a black box — a practical liability in any deployed credit decision system.
 
 ### 4. Hyperparameter Tuning
 
