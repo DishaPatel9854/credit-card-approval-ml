@@ -116,7 +116,6 @@ with col2:
     employed = st.selectbox("Employment Status", list(employment_map.keys()))
     drivers_license = st.selectbox("Driver's License", list(drivers_license_map.keys()))
     citizen = st.selectbox("Citizenship Status", list(citizen_map.keys()))
-    zipcode = st.text_input("Zip Code", "000")
 
 # Advanced section
 with st.expander("Advanced Demographic Attributes"):
@@ -144,7 +143,6 @@ if st.button("Evaluate Approval Probability"):
         "CreditScore": credit_score,
         "DriversLicense": drivers_license_map[drivers_license],
         "Citizen": citizen_map[citizen],
-        "ZipCode": zipcode,
         "Income": income
     }])
 
@@ -219,4 +217,7 @@ The prediction pipeline includes:
 
 Predictions are made by comparing the probability against {threshold:.3f}.  
 Applicants above this threshold are approved under the expansionary policy.
+
+**Dataset Note:** Built on the UCI Credit Approval dataset as a learning portfolio project.  
+A production system would use live bureau data (CIBIL, Experian, etc.).
 """)
