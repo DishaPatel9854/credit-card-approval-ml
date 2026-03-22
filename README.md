@@ -1,94 +1,148 @@
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://credit-card-approval-ml-njvc7tbe3vlww4dja7bjs8.streamlit.app/)
 # Credit Card Approval Probability Prediction
 
-A machine learning system that estimates the probability of credit card approval based on applicant financial and demographic attributes. The project simulates real-world underwriting logic and provides an interactive dashboard for evaluating approval likelihood before submitting a formal credit application.
+A machine learning system that estimates the probability of credit card approval based on applicant financial and demographic attributes.  
+The project simulates real-world underwriting logic and provides an interactive dashboard for evaluating approval likelihood before submitting a formal credit application.
 
 ---
 
 ## Problem Statement
 
-Submitting a credit card application triggers a **hard credit inquiry**, which can temporarily lower an applicant's credit score. This project builds a predictive system that estimates the **probability of approval before applying**, helping applicants assess their chances without impacting their credit profile.
+Submitting a credit card application typically triggers a **hard credit inquiry**, which can temporarily lower an applicant's credit score.
+
+This project builds a predictive system that estimates the **probability of approval before applying**, helping applicants assess their chances without impacting their credit profile.
 
 ---
 
 ## System Architecture
 ```
-User Input → Streamlit App → AWS S3 (model load) → Gradient Boosting Pipeline → Probability Output
+User Input → Streamlit App → AWS S3 (model + threshold) → Gradient Boosting Pipeline → Probability Output
 ```
 
 ---
 
 ## Dataset
 
-**Source:** UCI Credit Approval Dataset (`crx.csv`)
+**Source:** UCI Credit Approval Dataset (crx.csv)
 
-Features include age, debt level, years employed, income, credit score, prior default history, gender, marital status, citizenship, and employment status. Column identities are anonymized in the original dataset; labels have been mapped to interpretable names.
+The dataset contains anonymized applicant attributes including age, debt level, employment history, income, credit score, prior default history, and demographic features. These variables simulate features commonly used in credit underwriting models.
 
-**Target:** Binary approval label (`+` → 1, `-` → 0)
+> **Note:** Column identities are anonymized in the original dataset. This project is a portfolio demonstration — a production system would use live bureau data (CIBIL, Experian, etc.).
+
+**Target:** Binary approval label (+ → 1, - → 0)  
+**Size:** 690 applicants, 15 features
 
 ---
 
 ## Project Workflow
 
-### 1. Preprocessing Pipeline
+### 1. Exploratory Data Analysis
+
+- Missing value analysis (12 nulls in Gender/Age, handled via pipeline imputation)
+- Outlier detection via boxplots
+- Statistical hypothesis testing:
+  - t-test: Approved applicants are significantly older (mean 33.7 vs 29.8, p < 0.00001)
+  - t-test on log-income: Significant income difference between approved/rejected (p < 10⁻¹⁸)
+  - Chi-square: PriorDefault is the strongest categorical predictor (χ² = 355, p < 10⁻⁷⁹)
+- Correlation heatmap across numeric features
+- Class balance: 55.5% rejected, 44.5% approved — minimal imbalance
+
+---
+
+### 2. Preprocessing Pipeline
 
 Built using a Scikit-learn `ColumnTransformer` inside a `Pipeline` to prevent data leakage — all imputation and scaling is fit on training data only.
 
 - **Numeric features:** Median imputation → Standard scaling
 - **Categorical features:** Most-frequent imputation → One-hot encoding
-- **Train/test split:** 80/20 with stratification on the target label
+- **Train/test split:** 80/20 with stratification on target label
 
-### 2. Model Benchmarking
+---
 
-Three models were benchmarked at the default 0.50 threshold:
+### 3. Model Benchmarking (Default Threshold = 0.50)
 
-| Model | Recall | ROC-AUC |
-|---|---|---|
-| Gradient Boosting | — | 0.9607 |
-| SVM | — | 0.9593 |
-| AdaBoost | — | — |
+Three models benchmarked on the held-out test set. Primary metric: **Recall** — minimizes false rejections of creditworthy applicants.
 
-Primary metric: **Recall** - minimizes false rejections of creditworthy applicants.
+| Model | Recall | ROC-AUC | F1-Score | Precision |
+| --- | --- | --- | --- | --- |
+| SVM | 0.9180 | 0.9593 | 0.8889 | 0.8615 |
+| AdaBoost | 0.9016 | 0.9606 | 0.8871 | 0.8730 |
+| **Gradient Boosting** | **0.8852** | **0.9607** | **0.8780** | **0.8710** |
 
-### 3. Model Selection: Gradient Boosting
+---
 
-Despite SVM achieving slightly higher recall at the default threshold, Gradient Boosting was selected as the final model for three reasons:
+### 4. Model Selection: Gradient Boosting
 
-1. **Equivalent discrimination power** - ROC-AUC scores are nearly identical (0.9607 vs 0.9593), confirming both models carry the same underlying signal. The recall gap at 0.50 is a deployment artifact, not a model quality difference.
-2. **Threshold tunability** - Gradient Boosting outputs well-calibrated probabilities, making threshold optimization principled and auditable. This is the correct way to encode credit policy into a model.
-3. **Interpretability** - Gradient Boosting provides native feature importances. SVM (RBF kernel) is a black box — a practical liability in any deployed credit decision system.
+Despite SVM achieving slightly higher recall at the default 0.50 threshold, **Gradient Boosting** was selected as the final model for three reasons:
 
-### 4. Hyperparameter Tuning
+1. **Equivalent discrimination power** — ROC-AUC scores are nearly identical (0.9607 vs 0.9593), confirming both models carry the same underlying signal. The recall gap at 0.50 is a deployment artifact, not a model quality difference.
+2. **Threshold tunability** — Gradient Boosting outputs well-calibrated probabilities, making threshold optimization principled and auditable. This is the correct way to encode credit policy into a model.
+3. **Interpretability** — Native feature importances available. SVM with RBF kernel is a black box — a practical liability in any deployed credit decision system where regulators require explainability.
 
-`RandomizedSearchCV` with `scoring='recall'` over 5-fold stratified cross-validation. Parameters tuned: `n_estimators`, `max_depth`, `learning_rate`, `subsample`, `min_samples_split`.
+---
 
-### 5. Threshold Optimization (Credit Policy Alignment)
+### 5. Hyperparameter Tuning
+
+`RandomizedSearchCV` with `scoring='recall'` over 5-fold stratified cross-validation.
+
+**Best parameters:**
+- n_estimators: 100
+- max_depth: 3
+- learning_rate: 0.1
+- subsample: 1.0
+- min_samples_split: 2
+
+---
+
+### 6. Threshold Optimization (Credit Policy Alignment)
 
 The default 0.50 threshold assumes symmetric misclassification costs. In credit lending, costs are asymmetric and cycle-dependent.
 
-**Expansionary policy:** Scan the precision-recall curve to find the highest-precision threshold that still achieves **≥ 90% recall**. This directly encodes a bull-market lending objective - capturing creditworthy applicants at a controlled false positive rate.
+**Expansionary policy:** Find the highest-precision threshold that still achieves ≥ 90% recall — capturing creditworthy applicants at a controlled false positive rate.
 
-### 6. Final Model Performance (Tuned Threshold)
+**Selected threshold: 0.449**
+
+---
+
+### 7. Final Model Performance (Tuned Threshold = 0.449)
 
 | Metric | Score |
-|---|---|
-| Recall | ≥ 0.90 |
-| ROC-AUC | ~0.96 |
-| Validation | 5-Fold Stratified Cross-Validation |
+| --- | --- |
+| Recall | 0.9016 |
+| ROC-AUC | 0.9607 |
+| F1-Score | 0.8871 |
+| Precision | 0.8730 |
+
+Validated via **5-fold stratified cross-validation:**
+- Mean Recall: 0.8534 ± 0.0459
+- Mean ROC-AUC: 0.9363 ± 0.0117
+
+---
+
+### 8. Feature Importance (Top 5)
+
+| Feature | Importance |
+| --- | --- |
+| PriorDefault (No History) | 0.383 |
+| PriorDefault (Has History) | 0.194 |
+| Debt | 0.057 |
+| Employment Status | 0.055 |
+| Income | 0.055 |
+
+Prior default history is overwhelmingly the strongest predictor — consistent with real-world credit underwriting.
 
 ---
 
 ## Model Interpretability
 
-The Streamlit dashboard integrates **SHAP explanations**, allowing users to see which features contributed most to each prediction — mirroring explainability requirements used in real-world financial models.
+The dashboard integrates **SHAP explanations**, allowing users to see which features contributed most to each individual prediction — mirroring explainability requirements in real-world financial models.
 
 ---
 
 ## Deployment
 
-Trained model and optimal threshold are stored on **AWS S3** and loaded dynamically by the application.
+Trained model and optimal threshold stored on **AWS S3**, loaded dynamically by the Streamlit application.
 ```
-User Input → Streamlit App → AWS S3 (model + threshold) → Prediction + Gauge Chart
+User Input → Streamlit App → AWS S3 → Gradient Boosting Pipeline → Probability + Gauge Chart
 ```
 
 ---
@@ -103,7 +157,7 @@ Python · Scikit-learn · Pandas · NumPy · Streamlit · Plotly · SHAP · AWS 
 ```
 credit-card-approval-ml/
 │
-├── app.py                     # Streamlit dashboard
+├── app.py
 ├── requirements.txt
 ├── README.md
 │
@@ -116,7 +170,9 @@ credit-card-approval-ml/
 │   └── optimal_threshold.pkl
 │
 ├── assets/
-│   └── architecture.png
+│   ├── architecture.png
+│   ├── feature_importance.png
+│   └── model_evaluation_curves.png
 │
 └── notebooks/
     ├── eda.ipynb
@@ -135,14 +191,15 @@ streamlit run app.py
 
 ## Future Improvements
 
-- Add model monitoring for distribution drift
+- Add Expected Loss framework (PD × LGD × EAD)
 - Deploy dashboard publicly via Streamlit Community Cloud
+- Add model monitoring for distribution drift
 - Expand SHAP visualizations within the dashboard
-- Incorporate additional financial features
+- Incorporate additional financial features (debt-to-income ratio, transaction velocity)
 
 ---
 
 ## Author
 
-**Disha Patel** — Computer Science Student  
-Interests: Machine Learning · Financial Modeling
+Disha Patel — Computer Science Student  
+Interests: Machine Learning · Financial Modeling · Credit Risk
