@@ -72,11 +72,27 @@ Three models benchmarked on the held-out test set. Primary metric: **Recall** �
 
 ### 4. Model Selection: Gradient Boosting
 
-Despite SVM achieving slightly higher recall at the default 0.50 threshold, **Gradient Boosting** was selected as the final model for three reasons:
+SVM achieved the highest recall at the default threshold, and AdaBoost 
+matched Gradient Boosting's ROC-AUC almost exactly (0.9606 vs 0.9607). 
+Despite this, Gradient Boosting was selected as the final model for 
+three reasons:
 
-1. **Equivalent discrimination power** — ROC-AUC scores are nearly identical (0.9607 vs 0.9593), confirming both models carry the same underlying signal. The recall gap at 0.50 is a deployment artifact, not a model quality difference.
-2. **Threshold tunability** — Gradient Boosting outputs well-calibrated probabilities, making threshold optimization principled and auditable. This is the correct way to encode credit policy into a model.
-3. **Interpretability** — Native feature importances available. SVM with RBF kernel is a black box — a practical liability in any deployed credit decision system where regulators require explainability.
+1. **Threshold tunability** - Gradient Boosting outputs well-calibrated 
+   probabilities, making threshold optimization principled and auditable. 
+   After tuning, Gradient Boosting achieves ≥ 90% recall closing the 
+   gap with SVM at the default threshold while giving full control over 
+   the precision-recall tradeoff.
+
+2. **Interpretability** - Gradient Boosting provides native feature 
+   importances and is compatible with SHAP explainability. SVM (RBF kernel) 
+   is a black box, a practical liability in any deployed credit decision 
+   system where rejections must be justifiable.
+
+3. **Probability calibration** - Unlike SVM, Gradient Boosting outputs 
+   reliable approval probabilities, not just binary decisions. This allows 
+   the system to communicate confidence levels to end users, which is 
+   critical in a lending context.
+
 
 ---
 
@@ -104,6 +120,8 @@ The default 0.50 threshold assumes symmetric misclassification costs. In credit 
 ---
 
 ### 7. Final Model Performance (Tuned Threshold = 0.449)
+
+![Confusion Matrix](assets/confusion_matrix.png)
 
 | Metric | Score |
 | --- | --- |
