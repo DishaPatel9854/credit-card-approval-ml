@@ -121,7 +121,6 @@ The default 0.50 threshold assumes symmetric misclassification costs. In credit 
 
 ### 7. Final Model Performance (Tuned Threshold = 0.449)
 
-![Confusion Matrix](assets/confusion_matrix.png)
 
 | Metric | Score |
 | --- | --- |
