@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import joblib
@@ -16,17 +17,49 @@ st.set_page_config(
 # ----------------------------
 # Load Model
 # ----------------------------
+DEV_MODE = os.getenv('DEV_MODE', 'False').lower() in ('1', 'true', 'yes')
+try:
+    dev_secret = st.secrets.get('DEV_MODE') if hasattr(st, 'secrets') else None
+    if dev_secret is not None:
+        DEV_MODE = str(dev_secret).lower() in ('1', 'true', 'yes')
+except Exception:
+    DEV_MODE = DEV_MODE
+
 @st.cache_resource
 def load_model():
     model_url     = "https://credit-risk-model-bucket.s3.eu-north-1.amazonaws.com/gb_credit_model.pkl"
     threshold_url = "https://credit-risk-model-bucket.s3.eu-north-1.amazonaws.com/optimal_threshold.pkl"
 
-    model     = joblib.load(io.BytesIO(requests.get(model_url).content))
-    threshold = joblib.load(io.BytesIO(requests.get(threshold_url).content))
+    try:
+        r = requests.get(model_url, timeout=10)
+        r.raise_for_status()
+        model = joblib.load(io.BytesIO(r.content))
+    except Exception as e:
+        return None, None, f"Failed to load model from {model_url}: {e}"
 
-    return model, threshold
+    try:
+        r = requests.get(threshold_url, timeout=10)
+        r.raise_for_status()
+        threshold = joblib.load(io.BytesIO(r.content))
+    except Exception as e:
+        return None, None, f"Failed to load threshold from {threshold_url}: {e}"
 
-model, threshold = load_model()
+    return model, threshold, None
+
+model, threshold, load_err = load_model()
+if load_err is not None:
+    st.error(load_err)
+    st.stop()
+
+if DEV_MODE:
+    with st.expander('Model debug info (pre-check)'):
+        try:
+            feat_names = model.named_steps['preprocessing'].get_feature_names_out()
+            st.write('Preprocessor feature names:', list(feat_names))
+        except Exception:
+            st.write('Could not extract preprocessor feature names from the pipeline.')
+        st.write('Model object:', type(model))
+        st.write(f'Decision threshold (loaded): {threshold}')
 
 # ----------------------------
 # Alias Mappings (UI -> Model Code)
@@ -116,6 +149,7 @@ with col2:
     employed = st.selectbox("Employment Status", list(employment_map.keys()))
     drivers_license = st.selectbox("Driver's License", list(drivers_license_map.keys()))
     citizen = st.selectbox("Citizenship Status", list(citizen_map.keys()))
+    zip_code = st.text_input("Zip Code", value="")
 
 # Advanced section
 with st.expander("Advanced Demographic Attributes"):
@@ -143,11 +177,28 @@ if st.button("Evaluate Approval Probability"):
         "CreditScore": credit_score,
         "DriversLicense": drivers_license_map[drivers_license],
         "Citizen": citizen_map[citizen],
-        "Income": income
+        "Income": income,
+        "ZipCode": zip_code
     }])
 
-    probability = model.predict_proba(input_data)[0][1]
-    prediction  = (probability >= threshold).astype(int)
+    try:
+        probability = model.predict_proba(input_data)[0][1]
+        prediction  = int((probability >= threshold).astype(int))
+    except Exception as e:
+        err_msg = "Prediction failed during scoring. Please verify the submitted fields and retry."
+        st.error(err_msg)
+        if DEV_MODE:
+            # Provide actionable diagnostics only in developer mode
+            try:
+                expected = model.named_steps['preprocessing'].feature_names_in_
+            except Exception:
+                expected = None
+            with st.expander('Model debug info'):
+                st.write('Model object:', type(model))
+                st.write('Input Data columns provided:', list(input_data.columns))
+                if expected is not None:
+                    st.write('Preprocessor feature names:', list(expected))
+        st.stop()
 
     st.subheader("Approval Probability")
 

@@ -68,31 +68,63 @@ Three models benchmarked on the held-out test set. Primary metric: **Recall** �
 | AdaBoost | 0.9016 | 0.9606 | 0.8871 | 0.8730 |
 | **Gradient Boosting** | **0.8852** | **0.9607** | **0.8780** | **0.8710** |
 
+* Recall was prioritized because false rejections of creditworthy applicants are costly.
+* Model selection was not based solely on Recall.
+* Probability calibration and threshold optimization were also evaluated because the application outputs approval probabilities rather than only binary classifications.
+
 ---
 
 ### 4. Model Selection: Gradient Boosting
 
-SVM achieved the highest recall at the default threshold, and AdaBoost 
-matched Gradient Boosting's ROC-AUC almost exactly (0.9606 vs 0.9607). 
-Despite this, Gradient Boosting was selected as the final model for 
-three reasons:
+SVM achieved the highest recall at the default threshold, and AdaBoost matched Gradient Boosting's ROC-AUC almost exactly (0.9606 vs 0.9607). Because the application depends on approval probabilities and threshold-based decisioning, probability calibration was treated as a key model-selection criterion.
 
-1. **Threshold tunability** - Gradient Boosting outputs well-calibrated 
-   probabilities, making threshold optimization principled and auditable. 
-   After tuning, Gradient Boosting achieves ≥ 90% recall closing the 
-   gap with SVM at the default threshold while giving full control over 
-   the precision-recall tradeoff.
+#### SVM
+- Highest Recall among benchmarked models: 0.9180.
+- Strong ROC-AUC performance: 0.9593.
+- Competitive probability calibration with a Brier Score of 0.0766.
+- Limitations:
+  - Lower interpretability.
+  - RBF kernel behaves as a black-box model.
+  - Less suitable for explainable credit decisioning.
+  - Feature-level explanations are less straightforward.
 
-2. **Interpretability** - Gradient Boosting provides native feature 
-   importances and is compatible with SHAP explainability. SVM (RBF kernel) 
-   is a black box, a practical liability in any deployed credit decision 
-   system where rejections must be justifiable.
+SVM was not selected because the application requires calibrated probability outputs and better explainability rather than recall alone.
 
-3. **Probability calibration** - Unlike SVM, Gradient Boosting outputs 
-   reliable approval probabilities, not just binary decisions. This allows 
-   the system to communicate confidence levels to end users, which is 
-   critical in a lending context.
+#### AdaBoost
+- Strong Recall: 0.9016.
+- Very strong ROC-AUC: 0.9606.
+- Strong threshold-optimized precision: 0.8871 at Recall ≥ 90%.
+- Competitive overall classification performance.
+- Limitations:
+  - Probability calibration was significantly weaker than Gradient Boosting.
+  - Higher Brier Score: 0.1678.
+  - Slightly lower and less stable cross-validation ROC-AUC: 0.9326 ± 0.0173.
+  - Less suitable for probability-based decision support.
 
+AdaBoost was not selected because its calibration was weaker for probability decisioning, even though its classification metrics were strong.
+
+#### Gradient Boosting
+- Comparable ROC-AUC to AdaBoost: 0.9607.
+- Strong threshold optimization performance.
+- Best probability calibration among benchmarked models: Brier Score 0.0764.
+- Lowest Brier Score.
+- Slightly stronger and more stable cross-validation ROC-AUC: 0.9363 ± 0.0117.
+- Native feature importance support.
+- Well suited for probability-based credit decisioning.
+
+Gradient Boosting was selected because the application depends on calibrated probabilities, threshold optimization, stability, and explainability rather than recall alone.
+
+### Probability Calibration Analysis
+
+The model comparison included a dedicated calibration evaluation using Brier Score. Calibration is important because this application reports approval probabilities, and well-calibrated outputs make threshold-based decisions more reliable.
+
+| Model | Brier Score |
+| --- | --- |
+| Gradient Boosting | 0.0764 |
+| SVM | 0.0766 |
+| AdaBoost | 0.1678 |
+
+Gradient Boosting achieved the best calibration score. Lower Brier Score indicates better probability calibration. The calibration curve visualization is available in `assets/calibration_reliability_curves.png`.
 
 ---
 
@@ -117,6 +149,12 @@ The default 0.50 threshold assumes symmetric misclassification costs. In credit 
 
 **Selected threshold: 0.449**
 
+Both Gradient Boosting and AdaBoost were evaluated under the same Recall ≥ 90% constraint.
+- Gradient Boosting selected threshold: 0.449, with tuned precision 0.8730 at Recall 0.9016.
+- AdaBoost selected threshold: 0.502, with tuned precision 0.8871 at Recall 0.9016.
+
+This confirms both models were assessed using the same policy-aligned recall target.
+
 ---
 
 ### 7. Final Model Performance (Tuned Threshold = 0.449)
@@ -134,6 +172,8 @@ Validated via **5-fold stratified cross-validation:**
 - Mean Recall: 0.8534 ± 0.0459
 - Mean ROC-AUC: 0.9363 ± 0.0117
 
+This performance was validated using threshold optimization, probability calibration, and 5-fold cross-validation.
+
 ---
 
 ### 8. Feature Importance (Top 5)
@@ -146,13 +186,13 @@ Validated via **5-fold stratified cross-validation:**
 | Employment Status | 0.055 |
 | Income | 0.055 |
 
-Prior default history is overwhelmingly the strongest predictor — consistent with real-world credit underwriting.
+This feature importance summary is presented as a post-selection interpretability analysis rather than a model-selection justification. Prior default history is overwhelmingly the strongest predictor, which is consistent with real-world credit underwriting.
 
 ---
 
 ## Model Interpretability
 
-The dashboard integrates **SHAP explanations**, allowing users to see which features contributed most to each individual prediction — mirroring explainability requirements in real-world financial models.
+The model is SHAP-compatible, and SHAP-based explanation support is a planned extension for the dashboard. The current application does not yet expose dashboard-integrated SHAP explanations.
 
 ---
 
@@ -189,8 +229,12 @@ credit-card-approval-ml/
 │
 ├── assets/
 │   ├── architecture.png
+│   ├── calibration_reliability_curves.png
+│   ├── class_separation.png
+│   ├── evidence_table.csv
 │   ├── feature_importance.png
-│   └── model_evaluation_curves.png
+│   ├── model_evaluation_curves.png
+│   └── probability_distribution_models.png
 │
 └── notebooks/
     ├── eda.ipynb
@@ -212,6 +256,8 @@ streamlit run app.py
 - Add Expected Loss framework (PD × LGD × EAD)
 - Deploy dashboard publicly via Streamlit Community Cloud
 - Add model monitoring for distribution drift
+- Add probability calibration monitoring
+- Add portfolio-level credit risk analytics
 - Expand SHAP visualizations within the dashboard
 - Incorporate additional financial features (debt-to-income ratio, transaction velocity)
 

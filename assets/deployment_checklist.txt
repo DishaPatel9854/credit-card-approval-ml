@@ -1,0 +1,21 @@
+Artifacts to upload to S3:
+- ../models/final_credit_model.pkl
+- ../models/final_deployed_threshold.pkl
+- ../models/gb_credit_model.pkl
+- ../models/ada_credit_model.pkl
+- ../models/svm_credit_model.pkl
+- ../assets/feature_importance_final.png
+- ../assets/calibration_reliability_curves.png
+- ../assets/model_comparison_table.csv
+
+Commands to run locally:
+pip install -r requirements.txt
+python -m pip install --upgrade scikit-learn joblib
+
+AWS notes:
+- Ensure S3 bucket path matches app.py expectations (bucket/key).
+- Replace model files in S3 with the new artifacts above.
+
+Streamlit app checks:
+- app.py model load path should point to final_credit_model.pkl
+- threshold load path should point to final_deployed_threshold.pkl
